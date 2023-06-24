@@ -6,7 +6,6 @@ import numpy as np
 import numba
 from numba import jit
 
-## Test functions
 @jit(nopython=True, parallel=True)
 def gaussians(x, means, widths):
     '''Return the value of gaussian kernels.
@@ -31,10 +30,10 @@ def monte_carlo_pi_parallel(nsamples):
     return 4.0 * acc / nsamples
 
 @jit(nopython=True, parallel=True)
-def mse(nsamples):
-    return
+def mse(true, estimate):
+    ret = true - estimate
+    return ret
 
-means = np.random.uniform(-1, 1, size=1000000)
-widths = np.random.uniform(0.1, 0.3, size=1000000)
-print(gaussians(0.4, means, widths))
-print(monte_carlo_pi_parallel(100))
+@jit(nopython=True, parallel=True)
+def estimate(x):
+    x = np.array(x)
