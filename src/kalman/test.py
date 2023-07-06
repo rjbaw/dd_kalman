@@ -95,6 +95,7 @@ def sgd(model, y, N, n=1000, lr=1e-3, opt_params='adam'):
     N, Horizon
     '''
     losses = []
+    weights = []
     if opt_params == 'adam':
         opt = torch.optim.Adam(model.parameters(), lr=lr)
     elif opt_params == 'sgd':
@@ -109,7 +110,8 @@ def sgd(model, y, N, n=1000, lr=1e-3, opt_params='adam'):
         opt.step()
         opt.zero_grad()
         losses.append(float(loss))
+        weights.append(float(model.weights))
         pbar.update(1)
     print(model.weights)
     preds = model(N).detach().numpy()
-    return losses, preds
+    return losses, preds, weights
