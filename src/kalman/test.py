@@ -58,53 +58,53 @@ class Model(torch.nn.Module):
     P converges when (A,H) is observable and the (A, Q^(1/2)) is controllable
     L_∞ = A P_∞ H^T ( H P_∞ H^T + R )^(-1)
     '''
-    def __init__(self, y, A, H, P):
+    def __init__(self, A, H):
         super().__init__()
-        #L = A @ P @ H.T @ np.linalg.inv(H @ P @ H.T + R)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print('Using device:', self.device)
         weights = torch.distributions.Uniform(0, 0.5).sample()
-        self.A = A
-        self.H = H
-        self.y = y
+        self.A = torch.Tensor(A).to(self.device)
+        self.H = torch.Tensor(H).to(self.device)
         self.weights = torch.nn.Parameter(weights)
-    def forward(self, N):
-        A = torch.Tensor(self.A)
-        H = torch.Tensor(self.H)
-        y = torch.Tensor(self.y)
+
+    def forward(self, y, N):
+        A = self.A
+        H = self.H
         L = self.weights
-
-        #m_0 = 0
-        #partial_sum = 0
-        #for t in range(N - 1):
-        #    partial_sum += H@(A - L*H)**(N-1-t) * L * y[t]
-        #yhat = H@(A - H*L)**(N) * m_0 + partial_sum
-        #print(yhat)
-
-    #    B = np.array([0, Ts*(1/m)])
-    #    for k in range(N-1):
-    #        x[:,k+1] = A @ x[:,k] + B * F + ξ[k]
-        xhat = torch.zeros((2,N))
-        yhat = torch.zeros(N)
-        for k in range(N-1):
-            xhat[:,k+1] = A @ xhat[:,k] + L * (y[k] - H @ xhat[:,k]) 
-            yhat[k+1] = H @ xhat[:,k]
+        y = torch.Tensor(y).to(self.device)
+        n = A.shape[0]
+        m = y.shape[0]
+        xhat = torch.zeros((n,N+1), device=self.device)
+        yhat = torch.zeros((m,N), device=self.device)
+        for k in range(N):
+            xhat[:,k+1] = A @ xhat[:,k] + L * (y[:,k] - H @ xhat[:,k]) 
+            yhat[:,k] = H @ xhat[:,k]
         return yhat
 
-def sgd(model, y, N, n=1000, lr=1e-3, opt_params='adam'):
+def sgd(model, y, N, steps=1000, lr=1e-3, opt_params='adam'):
     '''
     y, observation vector
-    N, Horizon
+    N, time steps
+    steps, optimising num of loops
+    lr, learning rate
     '''
     losses = []
     weights = []
+
     if opt_params == 'adam':
         opt = torch.optim.Adam(model.parameters(), lr=lr)
     elif opt_params == 'sgd':
         opt = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
     else:
         assert True, "Not supported optimizer"
-    pbar = tqdm(total=n, unit='epochs')
-    for i in range(n):
-        preds = model(N)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    y = torch.Tensor(y).to(device)
+    model = model.to(device)
+
+    pbar = tqdm(total=steps, unit='epochs')
+    for i in range(steps):
+        preds = model(y,N)
         loss = torch.functional.F.mse_loss(preds, y)
         loss.backward()
         opt.step()
@@ -112,6 +112,6 @@ def sgd(model, y, N, n=1000, lr=1e-3, opt_params='adam'):
         losses.append(float(loss))
         weights.append(float(model.weights))
         pbar.update(1)
-    print(model.weights)
-    preds = model(N).detach().numpy()
+    pbar.close()
+    preds = model(y,N).cpu().detach().numpy()
     return losses, preds, weights

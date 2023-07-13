@@ -11,10 +11,28 @@ pip install .
 python3 examples/example1.py
 ```
 ### Response
-![Response](img/Figure_1.png)
+#### State x
+Mass = 20 kg
+![Response](img/x_1.png)
+Mass = 5 kg
+![Response](img/x_2.png)
+
+#### State y
+Mass = 20 kg
+![Response](img/y_2.png)
+Mass = 5 kg
+![Response](img/y_2.png)
+
 ### Error
+Mass = 20 kg
 ![Error](img/gradient_1.png)
+Mass = 5 kg
+![Error](img/gradient_2.png)
+
 ### Kalman Gain
+Mass = 20 kg
 ![Gain](img/gain_1.png)
+Mass = 5 kg
+![Error](img/gain_2.png)
 
 
