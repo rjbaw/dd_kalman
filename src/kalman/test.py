@@ -58,11 +58,22 @@ class Model(torch.nn.Module):
     P converges when (A,H) is observable and the (A, Q^(1/2)) is controllable
     L_∞ = A P_∞ H^T ( H P_∞ H^T + R )^(-1)
     '''
-    def __init__(self, A, H):
+    def __init__(self, A, H, gpu=True):
         super().__init__()
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if gpu:
+            if torch.cuda.is_available():
+                gpu = 'cuda'
+            elif torch.backends.mps.is_available():
+                gpu = 'mps'
+            else:
+                gpu = 'cpu'
+        else:
+            gpu = 'cpu'
+        self.device = torch.device(gpu)
         print('Using device:', self.device)
-        weights = torch.distributions.Uniform(0, 0.5).sample()
+        n = A.shape[0]
+        m = H.shape[0]
+        weights = torch.distributions.Uniform(0,0.5).sample((n,m))
         self.A = torch.Tensor(A).to(self.device)
         self.H = torch.Tensor(H).to(self.device)
         self.weights = torch.nn.Parameter(weights)
@@ -77,19 +88,21 @@ class Model(torch.nn.Module):
         xhat = torch.zeros((n,N+1), device=self.device)
         yhat = torch.zeros((m,N), device=self.device)
         for k in range(N):
-            xhat[:,k+1] = A @ xhat[:,k] + L * (y[:,k] - H @ xhat[:,k]) 
+            xhat[:,k+1] = A @ xhat[:,k] + L @ (y[:,k] - H @ xhat[:,k]) 
             yhat[:,k] = H @ xhat[:,k]
         return yhat
 
-def sgd(model, y, N, steps=1000, lr=1e-3, opt_params='adam'):
+def sgd(model, y, N, steps=1000, lr=1e-3, opt_params='adam', gpu=True):
     '''
     y, observation vector
     N, time steps
     steps, optimising num of loops
     lr, learning rate
     '''
-    losses = []
-    weights = []
+    #losses = []
+    #gains = []
+    losses = np.zeros(steps)
+    gains = np.zeros((model.H.shape[1],model.H.shape[0],steps))
 
     if opt_params == 'adam':
         opt = torch.optim.Adam(model.parameters(), lr=lr)
@@ -98,7 +111,16 @@ def sgd(model, y, N, steps=1000, lr=1e-3, opt_params='adam'):
     else:
         assert True, "Not supported optimizer"
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if gpu:
+        if torch.cuda.is_available():
+            gpu = 'cuda'
+        elif torch.backends.mps.is_available():
+            gpu = 'mps'
+        else:
+            gpu = 'cpu'
+    else:
+        gpu = 'cpu'
+    device = torch.device(gpu)
     y = torch.Tensor(y).to(device)
     model = model.to(device)
 
@@ -109,9 +131,13 @@ def sgd(model, y, N, steps=1000, lr=1e-3, opt_params='adam'):
         loss.backward()
         opt.step()
         opt.zero_grad()
-        losses.append(float(loss))
-        weights.append(float(model.weights))
+        #losses.append(float(loss))
+        #gains.append(model.weights.detach())
+        losses[i] = loss
+        gains[:,:,i] = model.weights.detach()
         pbar.update(1)
     pbar.close()
     preds = model(y,N).cpu().detach().numpy()
-    return losses, preds, weights
+    #losses = np.array(losses)
+    #gains = np.array(gains)
+    return losses, preds, gains
