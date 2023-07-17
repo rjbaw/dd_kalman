@@ -32,7 +32,13 @@ Mass = 5 kg
 ### Kalman Gain
 Mass = 20 kg
 ![Gain](img/gain_1.png)
+![Gain](img/msegain_1.png)
+![Gain](img/gain2_1.png)
+![Gain](img/msegain2_1.png)
 Mass = 5 kg
-![Error](img/gain_2.png)
+![Gain](img/gain_2.png)
+![Gain](img/msegain_2.png)
+![Gain](img/gain2_2.png)
+![Gain](img/msegain2_2.png)
 
 
