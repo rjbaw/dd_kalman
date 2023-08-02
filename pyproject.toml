@@ -10,9 +10,9 @@ readme = "README.md"
 requires-python = ">= 3.7"
 authors = [{ name = "John Doe", email = "example@example.com"}]
 dependencies = [
-    "numba",
     "torch",
     "tqdm",
+    "numba",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

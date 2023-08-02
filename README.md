@@ -1,6 +1,8 @@
 # Kalman Examples
 https://arxiv.org/abs/2210.14878
 
+[Colab Demo](https://colab.research.google.com/drive/1KPn_slEGinYSy-zqQ662MZrHwI7StI4N?usp=sharing)
+
 ## Setup
 ```
 pip install .

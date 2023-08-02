@@ -134,7 +134,7 @@ def sgd(model, y, N, steps=1000, lr=1e-3, opt_params='adam', gpu=True):
         #losses.append(float(loss))
         #gains.append(model.weights.detach())
         losses[i] = loss
-        gains[:,:,i] = model.weights.detach()
+        gains[:,:,i] = model.weights.cpu().detach()
         pbar.update(1)
     pbar.close()
     preds = model(y,N).cpu().detach().numpy()
