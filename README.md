@@ -12,35 +12,22 @@ pip install .
 ```
 python3 examples/example1.py
 ```
-### Response
-#### State x
-Mass = 20 kg
-![Response](img/x_1.png)
-Mass = 5 kg
-![Response](img/x_2.png)
 
-#### State y
 Mass = 20 kg
-![Response](img/y_2.png)
-Mass = 5 kg
-![Response](img/y_2.png)
+Damping Coefficient = 4 N/(ms^-1)
+Spring Stiffness = 2 N/m
+Force = 10 N
+Number of Mass-Spring-Damper System in Series = 3
+
+### Response
+#### Response y
+![Response](img/y.png)
 
 ### Error
-Mass = 20 kg
-![Error](img/gradient_1.png)
-Mass = 5 kg
-![Error](img/gradient_2.png)
+![Error](img/gradient.png)
 
 ### Kalman Gain
-Mass = 20 kg
-![Gain](img/gain_1.png)
-![Gain](img/msegain_1.png)
-![Gain](img/gain2_1.png)
-![Gain](img/msegain2_1.png)
-Mass = 5 kg
-![Gain](img/gain_2.png)
-![Gain](img/msegain_2.png)
-![Gain](img/gain2_2.png)
-![Gain](img/msegain2_2.png)
+![Gain](img/gain.png)
+![Gain](img/msegain.png)
 
 

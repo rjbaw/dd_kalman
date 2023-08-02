@@ -12,7 +12,7 @@ def series_mass_spring_damp(T, q, r, P_0, Ts=0.1, n_series=1):
     m x''(t) + c x'(t) + k x(t) = 0
     mass (kg)
     cdamp, damping coefficient (N/m^2)
-    kspring, spring constant (N/m^2)
+    kspring, spring constant (Ns/m)
     force (N)
     Ts, time step (s)
     N, simulation length (simulation time x time steps)
@@ -44,13 +44,6 @@ def series_mass_spring_damp(T, q, r, P_0, Ts=0.1, n_series=1):
                                             [kspring,-kspring]])
         C[idx:idx+2,idx:idx+2] += np.array([[-cdamp, cdamp],
                                             [cdamp,-cdamp]])
-    
-    #K = np.diag(np.ones(n_series-1)*kspring, -1) \
-    #    + np.diag(np.ones(n_series)*(-n_series*kspring), 0) \
-    #    + np.diag(np.ones(n_series-1)*kspring, 1)
-    #C = np.diag(np.ones(n_series-1)*cdamp, -1) \
-    #    + np.diag(np.ones(n_series)*(-n_series*cdamp), 0) \
-    #    + np.diag(np.ones(n_series-1)*cdamp, 1)
 
     A = Ts * ( np.block([[np.zeros((n_series,n_series)), np.eye(n_series)],
                          [np.linalg.inv(M) @ K, np.linalg.inv(M) @ C]]) )
@@ -71,12 +64,10 @@ def series_mass_spring_damp(T, q, r, P_0, Ts=0.1, n_series=1):
     ω = np.random.multivariate_normal(np.zeros(m), R, N).T
     x[:,0] = m_0 + B * u
     for k in range(N):
-        x[:,k+1] = A @ x[:,k] + B * u + ξ[:,k]
-        y[:,k] = H @ x[:,k] + ω[:,k]
-        #x[:,k+1] = A @ x[:,k] + 1/mass * ξ[:,k]
-        #y[:,k] = H @ x[:,k] + 1/mass * ω[:,k]
-        #x[:,k+1] = A @ x[:,k]
-        #y[:,k] = H @ x[:,k]
+        #x[:,k+1] = A @ x[:,k] + B * u + ξ[:,k]
+        #y[:,k] = H @ x[:,k] + ω[:,k]
+        x[:,k+1] = A @ x[:,k] + 1/mass * ξ[:,k]
+        y[:,k] = H @ x[:,k] + 1/mass * ω[:,k]
 
     print('|-------------------------------------|')
     print('  K:\n', K)
@@ -125,13 +116,11 @@ def simple_mass_spring_damp(T, Q, R, P_0, Ts=0.1):
     #ω = np.random.multivariate_normal(np.zeros(m), R, N).T * 1/np.sqrt(Ts)
     ξ = np.random.multivariate_normal(np.zeros(n), Q, N+1).T 
     ω = np.random.multivariate_normal(np.zeros(m), R, N).T
-    x[:,0] = m_0 + B * u
+    x[:,0] = m_0
 
     for k in range(N):
         x[:,k+1] = A @ x[:,k] + B * u + ξ[:,k]
         y[:,k] = H @ x[:,k] + ω[:,k]
-        #x[:,k+1] = A @ x[:,k]
-        #y[:,k] = H @ x[:,k]
 
     return x[:,:-1], y, A, H
 
@@ -145,7 +134,7 @@ if __name__ == "__main__":
     Ts = 0.1
     P_0 = 0.05
     T = 100
-    steps = 1000
+    steps = 3000
     q = 0.1
     r = 0.1
     n_series = 3
