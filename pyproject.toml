@@ -12,7 +12,6 @@ authors = [{ name = "John Doe", email = "example@example.com"}]
 dependencies = [
     "torch",
     "tqdm",
-    "numba",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

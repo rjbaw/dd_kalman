@@ -1,33 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import random
 import numpy as np
-import numba
 import torch
 from tqdm import tqdm
-
-@numba.jit(nopython=True, parallel=True)
-def gaussians(x, means, widths):
-    '''Return the value of gaussian kernels.
-    
-    x - location of evaluation
-    means - array of kernel means
-    widths - array of kernel widths
-    '''
-    n = means.shape[0]
-    result = np.exp( -0.5 * ((x - means) / widths)**2 ) / widths
-    return result / np.sqrt(2 * np.pi) / n
-
-@numba.jit(nopython=True, parallel=True)
-def monte_carlo_pi_parallel(nsamples):
-    acc = 0
-    for _ in numba.prange(nsamples):
-        x = random.random()
-        y = random.random()
-        if (x**2 + y**2) < 1.0:
-            acc += 1
-    return 4.0 * acc / nsamples
 
 class Model(torch.nn.Module):
     '''
@@ -71,9 +47,9 @@ class Model(torch.nn.Module):
             gpu = 'cpu'
         self.device = torch.device(gpu)
         print('Using device:', self.device)
-        n = A.shape[0]
-        m = H.shape[0]
-        weights = torch.distributions.Uniform(0,0.5).sample((n,m))
+        self.n = A.shape[0]
+        self.m = H.shape[0]
+        weights = torch.distributions.Uniform(0,0.5).sample((self.n,self.m))
         self.A = torch.Tensor(A).to(self.device)
         self.H = torch.Tensor(H).to(self.device)
         self.weights = torch.nn.Parameter(weights)
@@ -83,11 +59,14 @@ class Model(torch.nn.Module):
         H = self.H
         L = self.weights
         y = torch.Tensor(y).to(self.device)
-        n = A.shape[0]
-        m = y.shape[0]
-        xhat = torch.zeros((n,N+1), device=self.device)
-        yhat = torch.zeros((m,N), device=self.device)
+        xhat = torch.zeros((self.n,N+1), device=self.device)
+        yhat = torch.zeros((self.m,N), device=self.device)
         for k in range(N):
+            if torch.isnan(xhat[:,k][0]):
+                print(A @ xhat[:,k-2])
+                print(L @ (y[:,k-2] - H @ xhat[:,k-2]))
+                print(xhat[:,k-1])
+                breakpoint()
             xhat[:,k+1] = A @ xhat[:,k] + L @ (y[:,k] - H @ xhat[:,k]) 
             yhat[:,k] = H @ xhat[:,k]
         return yhat
@@ -99,8 +78,6 @@ def sgd(model, y, N, steps=1000, lr=1e-3, opt_params='adam', gpu=True):
     steps, optimising num of loops
     lr, learning rate
     '''
-    #losses = []
-    #gains = []
     losses = np.zeros(steps)
     gains = np.zeros((model.H.shape[1],model.H.shape[0],steps))
 
@@ -131,13 +108,9 @@ def sgd(model, y, N, steps=1000, lr=1e-3, opt_params='adam', gpu=True):
         loss.backward()
         opt.step()
         opt.zero_grad()
-        #losses.append(float(loss))
-        #gains.append(model.weights.detach())
         losses[i] = loss
         gains[:,:,i] = model.weights.cpu().detach()
         pbar.update(1)
     pbar.close()
     preds = model(y,N).cpu().detach().numpy()
-    #losses = np.array(losses)
-    #gains = np.array(gains)
     return losses, preds, gains
