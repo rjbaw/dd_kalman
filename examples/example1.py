@@ -1,17 +1,63 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from dataclasses import dataclass
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy
 from kalman import test
 
-def series_mass_spring_damp(T, q, r, P_0, Ts=0.1, n_series=1):
+@dataclass
+class training_config:
+    initial: np.array
+    steps: int = 300
+    gpu: bool = False
+    lr: float = 1e-3
+    opt_params: str = 'adam'
+
+@dataclass
+class system_config:
+    cdamp: float = 4
+    kspring: float = 2
+    mass: float = 20
+    force: float = 10 
+    q: float = 0.1
+    r: float = 0.1
+    P_0: float = 0.05
+    n_series: int = 1
+    forcing: bool = True
+    c_forcing: bool = False
+    initial: bool = False
+
+@dataclass
+class system:
+    x: torch.Tensor
+    y: torch.Tensor
+    A: torch.Tensor
+    H: torch.Tensor
+    Q: torch.Tensor
+    R: torch.Tensor
+    B: torch.Tensor
+    K: torch.Tensor
+    C: torch.Tensor
+
+@dataclass
+class result:
+    T: float
+    Ts: float
+    n_series: int
+    L: np.array
+    P: np.array
+    losses: np.array
+    preds: np.array
+    weights: np.array
+
+def series_mass_spring_damp(T, Ts, conf):
     '''
     m x''(t) + c x'(t) + k x(t) = 0
     mass (kg)
-    cdamp, damping coefficient (N/m^2)
+    conf.cdamp, damping coefficient (N/m^2)
     kspring, spring constant (Ns/m)
     force (N)
     Ts, time step (s)
@@ -27,10 +73,16 @@ def series_mass_spring_damp(T, q, r, P_0, Ts=0.1, n_series=1):
     x(t) ∈ R^n, state of the system
     y(t) ∈ R^m
     '''
-    cdamp = 4
-    kspring = 2
-    mass = 20
-    force = 10 
+
+    cdamp = conf.cdamp
+    kspring = conf.kspring
+    mass = conf.mass
+    force = conf.force 
+    P_0 = conf.P_0
+    r = conf.r
+    q = conf.q
+    n_series = conf.n_series
+    
     N = int(T/Ts)
     M = np.eye(n_series) * mass
     K = np.zeros((n_series,n_series))
@@ -46,13 +98,9 @@ def series_mass_spring_damp(T, q, r, P_0, Ts=0.1, n_series=1):
     A = Ts * ( np.block([[np.zeros((n_series,n_series)), np.eye(n_series)],
                          [np.linalg.inv(M) @ K, np.linalg.inv(M) @ C]]) )
     A += np.eye(A.shape[0])
-
     n = A.shape[0]
     m = n
     H = np.eye(n)
-    #m = 1
-    #H = np.zeros((m,n))
-    #H[0][-2] = 1 #choose output
     B = Ts * ( 1/mass * np.append(np.zeros(n-1), 1) )
     Q = np.eye(n) * q
     R = np.eye(m) * r
@@ -63,83 +111,66 @@ def series_mass_spring_damp(T, q, r, P_0, Ts=0.1, n_series=1):
     m_0 = np.random.normal(0, P_0, size=n)
     ξ = np.random.multivariate_normal(np.zeros(n), Q, N+1).T 
     ω = np.random.multivariate_normal(np.zeros(m), R, N).T
-    forcing = True
-    c_forcing = False
-    initial = False
-    if initial:
+    if conf.initial:
         x[:,0] += m_0
-    if forcing:
+    if conf.forcing:
         x[:,0] += B * u
     for k in range(N):
-        # x[:,k+1] = A @ x[:,k] + B * u + ξ[:,k]
-        # y[:,k] = H @ x[:,k] + ω[:,k]
         x[:,k+1] = A @ x[:,k] + ξ[:,k]
-        if c_forcing:
+        if conf.c_forcing:
             x[:,k+1] += B * u
         y[:,k] = H @ x[:,k] + ω[:,k]
-    return x[:,:-1], y, A, H, Q, R, K, C, B
+    sys = system(
+        x = torch.Tensor(x[:,:-1]),
+        y = torch.Tensor(y),
+        A = torch.Tensor(A),
+        H = torch.Tensor(H),
+        Q = torch.Tensor(Q),
+        R = torch.Tensor(R),
+        K = torch.Tensor(K),
+        C = torch.Tensor(C),
+        B = torch.Tensor(B),
+    )
+    return sys 
 
-if __name__ == "__main__":
+def print_info(sys=None, ret=None):
+    if ret is not None:
+        print('|====================================================================================================|')
+        print('  Horizon:', ret.T)
+        print('  Time Steps:', ret.Ts)
+        print('  Mass-Spring-Damper num of series:', ret.n_series)
+        print("  Optimal Kalman Gain L: \n", ret.weights[:,:,-1])
+        print("      dimensions:", ret.weights.shape)
+        print("  DARE Kalman Gain L")
+        print("  L: \n", ret.L)
+        print("  P: \n", ret.P)
+    if sys is not None:
+        print('|----------------------------------------------------------------------------------------------------|')
+        n, m = sys.A.shape[0], sys.H.shape[0]
+        print('  n, m: ', n, m)
+        print('  K: \n', sys.K)
+        print('  C: \n', sys.C)
+        print('  B: \n', sys.B)
+        print('  A: \n', sys.A)
+        print('  Q: \n', sys.Q)
+        print('  H: \n', sys.H)
+        print('  R: \n', sys.R)
+        print('|===================================================================================================|')
 
-    #nsim = 20
-    #batch_sizes = [10, 20, 30]
-    #torch.manual_seed(100)
-    #np.random.seed(100)
-
-    Ts = 0.1
-    P_0 = 0.05
-    T = 100
-    steps = 300
-    q = 0.1
-    r = 0.1
-    n_series = 1
-    N = int(T/Ts)
-
-    x, y, A, H, Q, R, K, C, B = series_mass_spring_damp(T, q, r, P_0, n_series=n_series)
-
-    t = np.arange(0, T, Ts)
-    model = test.Model(A, H, gpu=False)
-    losses, preds, weights = test.sgd(model, y, N, steps, lr=8e-3, gpu=False)
-    
-    # APA^T - APH^T (HPH^T + R)^(-1) HPA^T + Q - P = 0
-    P = scipy.linalg.solve_discrete_are(A.T,H.T,Q,R)
-    L = A @ P @ H.T @ np.linalg.inv(H @ P @ H.T + R)
-    n, m = A.shape[0], H.shape[0]
-
-    print('|====================================================================================================|')
-    print('  Horizon:', T)
-    print('  Time Steps:', Ts)
-    print('  Mass-Spring-Damper num of series:', n_series)
-    print('  n, m: ', n, m)
-    print('  K:\n', K)
-    print('  C:\n', C)
-    print('  B:\n', B)
-    print('  A: \n', A)
-    print('  Q: \n', Q)
-    print('  H: \n', H)
-    print('  R: \n', R)
-    print("  Optimal Kalman Gain L: \n", weights[:,:,-1])
-    print("  dimensions:", weights.shape)
-    print('|----------------------------------------------------------------------------------------------------|')
-    print("  DARE Kalman Gain L")
-    print("  L: \n", L)
-    print("  P: \n", P)
-    print('|====================================================================================================|')
-
-    # Validation
-    x, y, A, H, Q, R, K, C, B = series_mass_spring_damp(T, q, r, P_0, n_series=n_series)
-    preds = model(y,N).cpu().detach().numpy()
-
+def plot(sys,ret):
+    t = torch.arange(0, ret.T, ret.Ts)
+    L, weights, preds, losses = ret.L, ret.weights, ret.preds, ret.losses
+    n, m = sys.A.shape[0], sys.H.shape[0]
     for i in range(m):
-
         plt.figure()
-        plt.plot(t, y[i])
+        plt.plot(t, sys.y[i])
         plt.plot(t, preds[i], color='r')
         plt.title('Simulation of Mass-Spring-Damper System')
         plt.xlabel('t [s]')
         plt.ylabel('y(t)')
         plt.grid()
         plt.legend(["y", "filtered y"])
+        plt.savefig("y_T-{}_Ts-{}_nseries-{}.png".format(ret.T, ret.Ts, ret.n_series))
         plt.show()
 
         plt.figure()
@@ -147,6 +178,7 @@ if __name__ == "__main__":
         plt.title('Loss Function')
         plt.xlabel('n [steps]')
         plt.grid()
+        plt.savefig("trainloss_T-{}_Ts-{}_nseries-{}.png".format(ret.T, ret.Ts, ret.n_series))
         plt.show()
 
         for j in range(n):
@@ -157,6 +189,7 @@ if __name__ == "__main__":
             plt.xlabel('n [steps]')
             plt.legend(["Optimal Gain", "DARE Gain"])
             plt.grid()
+            plt.savefig("gain_T-{}_Ts-{}_nseries-{}.png".format(ret.T, ret.Ts, ret.n_series))
             plt.show()
 
             plt.figure()
@@ -164,4 +197,90 @@ if __name__ == "__main__":
             plt.title('MSE Kalman Gain')
             plt.xlabel('n [steps]')
             plt.grid()
+            plt.savefig("msegain_T-{}_Ts-{}_nseries-{}.png".format(ret.T, ret.Ts, ret.n_series))
             plt.show()
+    
+def main():
+    #nsim = 20
+    #batch_sizes = [10, 20, 30]
+    #torch.manual_seed(100)
+    #torch.random.seed(100)
+
+    T = 100
+    Ts = 0.1
+    N = int(T/Ts)
+    n_series = 2
+    sys_conf = system_config(n_series=n_series)
+
+    sys = series_mass_spring_damp(T, Ts, sys_conf)
+    A, H, R, Q = sys.A, sys.H, sys.R, sys.Q
+    
+    # APA^T - APH^T (HPH^T + R)^(-1) HPA^T + Q - P = 0
+    P = scipy.linalg.solve_discrete_are(A.T,H.T,Q,R)
+    P = torch.Tensor(P)
+    L = A @ P @ H.T @ torch.linalg.inv(H @ P @ H.T + R)
+
+    train_conf = training_config(initial = L)
+    model = test.Model(A, H, train_conf)
+    losses, preds, weights = test.sgd(model, sys.y, N, train_conf)
+    sys = series_mass_spring_damp(T, Ts, sys_conf) # Validation
+    preds = model(sys.y,N).cpu().detach().numpy()
+
+    ret = result(
+        T = T,
+        Ts = Ts,
+        n_series = n_series,
+        L = L,
+        P = P,
+        losses = losses,
+        preds = preds,
+        weights = weights,
+    )
+    print_info(sys,ret)
+    plot(sys,ret)
+
+def main_range():
+    T = 100
+    Ts = 0.1
+    N = int(T/Ts)
+    n_series_range = 3
+    plt.figure()
+    for n_series in range(n_series_range):
+        sys_conf = system_config(n_series=n_series+1)
+        sys = series_mass_spring_damp(T, Ts, sys_conf)
+        A, H, R, Q = sys.A, sys.H, sys.R, sys.Q
+        P = scipy.linalg.solve_discrete_are(A.T,H.T,Q,R)
+        P = torch.Tensor(P)
+        L = A @ P @ H.T @ torch.linalg.inv(H @ P @ H.T + R)
+        train_conf = training_config(initial = L)
+        model = test.Model(A, H, train_conf)
+        losses, preds, weights = test.sgd(model, sys.y, N, train_conf)
+        sys = series_mass_spring_damp(T, Ts, sys_conf) # Validation
+        preds = model(sys.y,N).cpu().detach().numpy()
+        mse = (np.expand_dims(L,axis=-1) - weights)**2
+        plt.semilogy( np.sum(mse, axis=(0,1)), label='Num Series {}'.format(n_series+1) )
+
+        #ret = result(
+        #    T = T,
+        #    Ts = Ts,
+        #    n_series = n_series,
+        #    L = L,
+        #    losses = losses,
+        #    preds = preds,
+        #    weights = weights,
+        #)
+        #print_info(sys,ret)
+        #plot(sys,ret)
+
+    plt.title('MSE Kalman Gain')
+    plt.xlabel('n [steps]')
+    plt.legend()
+    plt.grid()
+    plt.savefig('mse_nseries.png')
+    plt.show()
+
+    
+if __name__ == "__main__":
+    main_range()
+    #main()
+

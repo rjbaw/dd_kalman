@@ -34,9 +34,9 @@ class Model(torch.nn.Module):
     P converges when (A,H) is observable and the (A, Q^(1/2)) is controllable
     L_∞ = A P_∞ H^T ( H P_∞ H^T + R )^(-1)
     '''
-    def __init__(self, A, H, gpu=True):
+    def __init__(self, A, H, conf):
         super().__init__()
-        if gpu:
+        if conf.gpu:
             if torch.cuda.is_available():
                 gpu = 'cuda'
             elif torch.backends.mps.is_available():
@@ -50,6 +50,7 @@ class Model(torch.nn.Module):
         self.n = A.shape[0]
         self.m = H.shape[0]
         weights = torch.distributions.Uniform(0,0.5).sample((self.n,self.m))
+        weights = torch.Tensor(conf.initial + weights).to(self.device)
         self.A = torch.Tensor(A).to(self.device)
         self.H = torch.Tensor(H).to(self.device)
         self.weights = torch.nn.Parameter(weights)
@@ -63,46 +64,48 @@ class Model(torch.nn.Module):
         yhat = torch.zeros((self.m,N), device=self.device)
         for k in range(N):
             if torch.isnan(xhat[:,k][0]):
-                print(A @ xhat[:,k-2])
-                print(L @ (y[:,k-2] - H @ xhat[:,k-2]))
-                print(xhat[:,k-1])
-                breakpoint()
+                print("Infeasible initial conditions")
+                print("Retrying with new initial conditions")
+                #print(A @ xhat[:,k-2])
+                #print(L @ (y[:,k-2] - H @ xhat[:,k-2]))
+                #print(xhat[:,k-1])
+                #breakpoint()
             xhat[:,k+1] = A @ xhat[:,k] + L @ (y[:,k] - H @ xhat[:,k]) 
             yhat[:,k] = H @ xhat[:,k]
         return yhat
 
-def sgd(model, y, N, steps=1000, lr=1e-3, opt_params='adam', gpu=True):
+def sgd(model, y, N, conf):
     '''
     y, observation vector
     N, time steps
     steps, optimising num of loops
     lr, learning rate
     '''
-    losses = np.zeros(steps)
-    gains = np.zeros((model.H.shape[1],model.H.shape[0],steps))
+    losses = np.zeros(conf.steps)
+    gains = np.zeros((model.H.shape[1],model.H.shape[0],conf.steps))
 
-    if opt_params == 'adam':
-        opt = torch.optim.Adam(model.parameters(), lr=lr)
-    elif opt_params == 'sgd':
-        opt = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    if conf.opt_params == 'adam':
+        opt = torch.optim.Adam(model.parameters(), lr=conf.lr)
+    elif conf.opt_params == 'sgd':
+        opt = torch.optim.SGD(model.parameters(), lr=conf.lr, momentum=0.9)
     else:
         assert True, "Not supported optimizer"
 
-    if gpu:
+    if conf.gpu:
         if torch.cuda.is_available():
-            gpu = 'cuda'
+            conf.gpu = 'cuda'
         elif torch.backends.mps.is_available():
-            gpu = 'mps'
+            conf.gpu = 'mps'
         else:
-            gpu = 'cpu'
+            conf.gpu = 'cpu'
     else:
-        gpu = 'cpu'
-    device = torch.device(gpu)
+        conf.gpu = 'cpu'
+    device = torch.device(conf.gpu)
     y = torch.Tensor(y).to(device)
     model = model.to(device)
 
-    pbar = tqdm(total=steps, unit='epochs')
-    for i in range(steps):
+    pbar = tqdm(total=conf.steps, unit='epochs')
+    for i in range(conf.steps):
         preds = model(y,N)
         loss = torch.functional.F.mse_loss(preds, y)
         loss.backward()
