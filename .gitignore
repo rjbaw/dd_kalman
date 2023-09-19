@@ -1,6 +1,8 @@
 # Emacs/Vim
 *~
 *#
+data/
+img/unsorted/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

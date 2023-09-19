@@ -32,6 +32,7 @@ Number of Mass-Spring-Damper System in Series = 3
 
 ### MSE Kalman Gain for different n_series
 ![nseries_Error](img/mse_nseries.png)
+![nseries_Error](img/mse_nseries_ss.png)
 
 
 

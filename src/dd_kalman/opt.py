@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-class Model(torch.nn.Module):
+class dspo_model(torch.nn.Module):
     '''
     Input (y, A, H, P)
     y, observation vector
@@ -34,42 +34,32 @@ class Model(torch.nn.Module):
     P converges when (A,H) is observable and the (A, Q^(1/2)) is controllable
     L_∞ = A P_∞ H^T ( H P_∞ H^T + R )^(-1)
     '''
+
     def __init__(self, A, H, conf):
         super().__init__()
-        if conf.gpu:
-            if torch.cuda.is_available():
-                gpu = 'cuda'
-            elif torch.backends.mps.is_available():
-                gpu = 'mps'
-            else:
-                gpu = 'cpu'
-        else:
-            gpu = 'cpu'
-        self.device = torch.device(gpu)
-        print('Using device:', self.device)
+        self.device = conf.device
         self.n = A.shape[0]
         self.m = H.shape[0]
-        weights = torch.distributions.Uniform(0,0.5).sample((self.n,self.m))
-        weights = torch.Tensor(conf.initial + weights).to(self.device)
         self.A = torch.Tensor(A).to(self.device)
         self.H = torch.Tensor(H).to(self.device)
-        self.weights = torch.nn.Parameter(weights)
+        #weights = torch.distributions.Uniform(0,0.5).sample((self.n,self.m))
+        init = torch.Tensor(conf.initial).to(self.device)
+        #self.weights = torch.nn.Parameter(init + weights)
+        self.weights = torch.nn.Parameter(init)
 
     def forward(self, y, N):
         A = self.A
         H = self.H
         L = self.weights
-        y = torch.Tensor(y).to(self.device)
         xhat = torch.zeros((self.n,N+1), device=self.device)
         yhat = torch.zeros((self.m,N), device=self.device)
         for k in range(N):
             if torch.isnan(xhat[:,k][0]):
-                print("Infeasible initial conditions")
-                print("Retrying with new initial conditions")
-                #print(A @ xhat[:,k-2])
-                #print(L @ (y[:,k-2] - H @ xhat[:,k-2]))
-                #print(xhat[:,k-1])
-                #breakpoint()
+                print("Infeasible solution, retry with new initial conditions")
+                print(A @ xhat[:,k-2])
+                print(L @ (y[:,k-2] - H @ xhat[:,k-2]))
+                print(xhat[:,k-1])
+                breakpoint()
             xhat[:,k+1] = A @ xhat[:,k] + L @ (y[:,k] - H @ xhat[:,k]) 
             yhat[:,k] = H @ xhat[:,k]
         return yhat
@@ -87,23 +77,11 @@ def sgd(model, y, N, conf):
     if conf.opt_params == 'adam':
         opt = torch.optim.Adam(model.parameters(), lr=conf.lr)
     elif conf.opt_params == 'sgd':
-        opt = torch.optim.SGD(model.parameters(), lr=conf.lr, momentum=0.9)
+        opt = torch.optim.SGD(model.parameters(), lr=conf.lr, momentum=conf.momentum)
     else:
         assert True, "Not supported optimizer"
 
-    if conf.gpu:
-        if torch.cuda.is_available():
-            conf.gpu = 'cuda'
-        elif torch.backends.mps.is_available():
-            conf.gpu = 'mps'
-        else:
-            conf.gpu = 'cpu'
-    else:
-        conf.gpu = 'cpu'
-    device = torch.device(conf.gpu)
-    y = torch.Tensor(y).to(device)
-    model = model.to(device)
-
+    model = model.to(conf.device)
     pbar = tqdm(total=conf.steps, unit='epochs')
     for i in range(conf.steps):
         preds = model(y,N)

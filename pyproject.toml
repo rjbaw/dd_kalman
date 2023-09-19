@@ -3,12 +3,12 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "kalman"
-description = "TODO"
+name = "dd_kalman"
+description = "Toolbox with Kalman inspired filtering algorithms"
 version = "0.0.1"
 readme = "README.md"
-requires-python = ">= 3.7"
-authors = [{ name = "John Doe", email = "example@example.com"}]
+requires-python = ">= 3.8"
+authors = [{ name = "Raveeroj B.", email = "rjbaw@uw.edu" }]
 dependencies = [
     "torch",
     "tqdm",
@@ -23,7 +23,6 @@ classifiers = [
 Homepage = "http://example.com"
 Repository = "http://example.com"
 Documentation = "http://example.com"
-"Bug Report" = "http://example.com"
 
 [tool.setuptools]
 include-package-data = true
