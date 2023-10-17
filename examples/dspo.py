@@ -1,47 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-from dataclasses import dataclass
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy
 import dd_kalman as ddk
-
-@dataclass
-class training_config:
-    initial: np.array
-    device: torch.device 
-    steps: int = 1000
-    gpu: bool = False
-    lr: float = 5e-3
-    opt_params: str = 'sgd'
-    momentum: float = 0.9
-
-@dataclass
-class system_config:
-    cdamp: float = 4
-    kspring: float = 2
-    mass: float = 20
-    force: float = 10 
-    q: float = 0.1
-    r: float = 0.1
-    P_0: float = 0.05
-    n_series: int = 1
-    forcing: bool = True
-    c_forcing: bool = False
-    initial: bool = False
-
-@dataclass
-class result:
-    T: float
-    Ts: float
-    n_series: int
-    L: np.array
-    P: np.array
-    losses: np.array
-    preds: np.array
-    weights: np.array
+from conf import *
 
 def plot(sys,ret):
     t = np.arange(0, ret.T, ret.Ts)
@@ -86,36 +51,60 @@ def plot(sys,ret):
             plt.savefig("img/unsorted/msegain_T-{}_Ts-{}_nseries-{}.png".format(ret.T, ret.Ts, ret.n_series))
             plt.show()
 
+def env_init(n_series):
+    #sys_conf = msd_sys_config(n_series=n_series)
+    #sys = ddk.series_mass_spring_damp(sys_conf)
+    sys_conf = msdp_sys_config(n_series=n_series, r=0.001, q=0.001)
+    sys = ddk.series_mass_spring_damp_pendulum(sys_conf)
+    #sys_conf = pendulum_sys_config(forcing=True, c_forcing=True, initial=True, r=0.001, q=0.001, force=1)
+    #sys = ddk.pendulum(sys_conf) # Validation
+    return sys_conf, sys
+    
+
 def main():
+    test = False
     #nsim = 20
-    #batch_sizes = [10, 20, 30]
-    #torch.manual_seed(100)
-    #torch.random.seed(100)
-
-    T = 100
-    Ts = 0.1
-    N = int(T/Ts)
-    n_series = 10
+    n_series = 2
     device = ddk.get_device(gpu=True)
+    sys_conf, sys = env_init(n_series)
+    T = sys_conf.T
+    Ts = sys_conf.Ts
+    N = int(T/Ts)
 
-    sys_conf = system_config(n_series=n_series)
-    sys = ddk.series_mass_spring_damp(T, Ts, sys_conf)
+    if test:
+        t = np.arange(0, T, Ts)
+        print(sys.A)
+        print(sys.B)
+        for i in range(sys.y.shape[0]):
+            plt.figure()
+            plt.plot(t, sys.y[i])
+            plt.title('Simulation')
+            plt.xlabel('t [s]')
+            plt.ylabel('y(t)')
+            plt.grid()
+            plt.show()
+        return
+
     A, H, R, Q = sys.A, sys.H, sys.R, sys.Q
     # APA^T - APH^T (HPH^T + R)^(-1) HPA^T + Q - P = 0
     P = scipy.linalg.solve_discrete_are(A.T,H.T,Q,R)
     L = A @ P @ H.T @ np.linalg.inv(H @ P @ H.T + R)
-    P_init = scipy.linalg.solve_discrete_are(A.T,H.T,Q*2,R*2)
+
+    P_init = scipy.linalg.solve_discrete_are(A.T,H.T,2*Q,2*R)
     L_init = A @ P_init @ H.T @ np.linalg.inv(H @ P_init @ H.T + R)
 
-    train_conf = training_config(initial = L_init, device=device, lr=5e-3 * n_series**2)
+    lr = 5e-1 * n_series
+    train_conf = dspo_config(initial = L_init, device=device, lr=lr)
     y = torch.Tensor(sys.y).to(device)
     model = ddk.dspo_model(A, H, train_conf)
     losses, preds, weights = ddk.sgd(model, y, N, train_conf)
-    sys = ddk.series_mass_spring_damp(T, Ts, sys_conf) # Validation
+
+    # Validation
+    sys_conf, sys = env_init(n_series)
     y = torch.Tensor(sys.y).to(device)
     preds = model(y,N).cpu().detach().numpy()
 
-    ret = result(
+    ret = dspo_result(
         T = T, Ts = Ts, n_series = n_series, L = L, P = P,
         losses = losses, preds = preds, weights = weights,
     )

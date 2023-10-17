@@ -12,6 +12,7 @@ authors = [{ name = "Raveeroj B.", email = "rjbaw@uw.edu" }]
 dependencies = [
     "torch",
     "tqdm",
+    "soundfile",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

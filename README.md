@@ -22,17 +22,30 @@ Number of Mass-Spring-Damper System in Series = 3
 ### Response
 #### Response y
 ![Response](img/y.png)
+![Response](img/scatter_loss.png)
+![Response](img/scatter_axis.png)
+![Response](img/y2.png)
+![Response](img/scatter_loss2.png)
+![Response](img/scatter_axis2.png)
 
-### Error
+### Training loss
 ![Error](img/trainloss.png)
 
-### Kalman Gain
+### Kalman Gain vs ARE solution
 ![Gain](img/gain.png)
 ![Gain](img/msegain.png)
 
 ### MSE Kalman Gain for different n_series
-![nseries_Error](img/mse_nseries.png)
-![nseries_Error](img/mse_nseries_ss.png)
+![nseries_Error](img/gain_mse_nseries_time.png)
+![nseries_Error](img/gain_mse_nseries.png)
+
+### Filters for Audio file
+![audio](img/audio_y.png)
+![audio](img/audio_y2.png)
+
+### Comparison
+![compare](img/mse_prediction.png)
+![compare](img/dspo_vs_regret.png)
 
 
 
