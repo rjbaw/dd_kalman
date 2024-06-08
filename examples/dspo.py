@@ -54,10 +54,11 @@ def plot(sys,ret):
 def env_init(n_series):
     #sys_conf = msd_sys_config(n_series=n_series)
     #sys = ddk.series_mass_spring_damp(sys_conf)
-    sys_conf = msdp_sys_config(n_series=n_series, r=0.001, q=0.001)
-    sys = ddk.series_mass_spring_damp_pendulum(sys_conf)
-    #sys_conf = pendulum_sys_config(forcing=True, c_forcing=True, initial=True, r=0.001, q=0.001, force=1)
-    #sys = ddk.pendulum(sys_conf) # Validation
+    #sys_conf = msdp_sys_config(n_series=n_series, r=0.001, q=0.001)
+    #sys = ddk.series_mass_spring_damp_pendulum(sys_conf)
+    sys_conf = pendulum_sys_config(forcing=True, c_forcing=True, initial=True,
+                                   r=0.001, q=0.001, force=1)
+    sys = ddk.pendulum(sys_conf) # Validation
     return sys_conf, sys
     
 

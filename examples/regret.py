@@ -10,11 +10,11 @@ import dd_kalman as ddk
 from conf import *
 
 def env_init(n_series):
-    #sys_conf = msd_sys_config(n_series=n_series)
-    #sys = ddk.series_mass_spring_damp(sys_conf)
-    sys_conf = msdp_sys_config(n_series=n_series)
-    sys = ddk.series_mass_spring_damp_pendulum(sys_conf)
-    #sys_conf = pendulum_sys_config(c_forcing=True, initial=False, r=0, q=0, force=1)
+    sys_conf = msd_sys_config(n_series=n_series)
+    sys = ddk.series_mass_spring_damp(sys_conf)
+    #sys_conf = msdp_sys_config(n_series=n_series)
+    #sys = ddk.series_mass_spring_damp_pendulum(sys_conf)
+    #sys_conf = pendulum_sys_config(c_forcing=False, initial=True, force=1)
     #sys = ddk.pendulum(sys_conf) # Validation
     return sys_conf, sys
 
@@ -37,8 +37,8 @@ def main():
     losses, preds, weights = ddk.sgd(model, y, N, train_conf)
 
     Tinit = 2
-    β = 10 * 1/np.log(T)
-    λ = 100
+    β = 2 * 1/np.log(T)
+    λ = 1
     #y = torch.Tensor(sys.y).to(device)
     #regret_preds, regret_losses = ddk.log_regret(Tinit, β, λ, sys.y)
 
@@ -52,12 +52,12 @@ def main():
 
     t = np.arange(0, T, Ts)
     n, m = sys.A.shape[0], sys.H.shape[0]
-    val_loss_dspo = (y-preds)**2
-    val_loss_regret = (y-regret_preds)**2
+    val_loss_dspo = (sys.y-preds)**2
+    val_loss_regret = (sys.y-regret_preds)**2
     
     for i in range(m):
         plt.figure()
-        plt.plot(t, y[i])
+        plt.plot(t, sys.y[i])
         plt.plot(t, preds[i], color='r')
         plt.plot(t, regret_preds[i], color='g')
         plt.title('Simulation of Mass-Spring-Damper System')

@@ -13,6 +13,7 @@ dependencies = [
     "torch",
     "tqdm",
     "soundfile",
+    "scipy",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

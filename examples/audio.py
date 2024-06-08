@@ -9,7 +9,8 @@ from conf import *
 
 def main():
     device = ddk.get_device(gpu=True)
-    sys_conf = audio_sys_config(input='data/audio/compression.wav')
+    sys_conf = audio_sys_config(input='data/audio/organfinale.wav')
+    #sys_conf = audio_sys_config(input='data/audio/compression.wav')
     #sys_conf = audio_sys_config(input='data/audio/bad_guy.flac')
     sys = ddk.audio(sys_conf)
     A, H, R, Q = sys.A, sys.H, sys.R, sys.Q

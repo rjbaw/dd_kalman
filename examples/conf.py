@@ -11,7 +11,7 @@ from dataclasses import dataclass
 class dspo_config:
     initial: np.array
     device: torch.device 
-    steps: int = 1000
+    steps: int = 10000
     gpu: bool = False
     lr: float = 5e-3
     opt_params: str = 'sgd'
@@ -42,7 +42,7 @@ class msd_sys_config:
 @dataclass
 class msdp_sys_config:
     T: float = 100
-    Ts: float = 5e-3
+    Ts: float = 0.1
     cdamp: float = 4
     kspring: float = 2
     smass: float = 5

@@ -1,7 +1,11 @@
-# Kalman Examples
-https://arxiv.org/abs/2210.14878
+# Data-Driven Kalman Filters (dd_kalman)
 
 [Colab Demo](https://colab.research.google.com/drive/1KPn_slEGinYSy-zqQ662MZrHwI7StI4N?usp=sharing)
+
+## Implemented Papers
+
+- https://arxiv.org/abs/2210.14878
+- https://www.arxiv.org/abs/2002.05141
 
 ## Setup
 ```
@@ -47,5 +51,5 @@ Number of Mass-Spring-Damper System in Series = 3
 ![compare](img/mse_prediction.png)
 ![compare](img/dspo_vs_regret.png)
 
-
-
+## Acknowledgements
+- Amir Taghvaei (AA Department)

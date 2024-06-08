@@ -18,7 +18,7 @@ def env_init(n_series):
     return sys_conf, sys
 
 def main_range():
-    n_series_range = 10
+    n_series_range = 30
     device = ddk.get_device(gpu=True)
     plt.figure()
     for n_series in range(n_series_range):
