@@ -94,8 +94,7 @@ def main():
     P_init = scipy.linalg.solve_discrete_are(A.T,H.T,2*Q,2*R)
     L_init = A @ P_init @ H.T @ np.linalg.inv(H @ P_init @ H.T + R)
 
-    lr = 5e-1 * n_series
-    train_conf = dspo_config(initial = L_init, device=device, lr=lr)
+    train_conf = dspo_config(initial = L_init, device=device)
     y = torch.Tensor(sys.y).to(device)
     model = ddk.dspo_model(A, H, train_conf)
     losses, preds, weights = ddk.sgd(model, y, N, train_conf)

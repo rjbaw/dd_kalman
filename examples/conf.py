@@ -13,7 +13,7 @@ class dspo_config:
     device: torch.device 
     steps: int = 10000
     gpu: bool = False
-    lr: float = 5e-3
+    lr: float = 1e-4
     opt_params: str = 'sgd'
     momentum: float = 0.9
 

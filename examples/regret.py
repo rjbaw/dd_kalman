@@ -69,12 +69,13 @@ def main():
         plt.show()
 
         plt.figure()
-        plt.scatter(range(train_conf.steps), val_loss_dspo[i])
-        plt.scatter(range(train_conf.steps), val_loss_regret[i])
-        plt.title('Loss Function')
-        plt.xlabel('n [steps]')
+        plt.plot(t, val_loss_dspo[i])
+        plt.plot(t, val_loss_regret[i])
+        plt.title('Squared Error at Each Time Step')
+        plt.xlabel('t [s]')
+        plt.ylabel('Squared Error')
         plt.grid()
-        plt.legend(["dspo losses", "log regret losses"])
+        plt.legend(["DSPO", "Log-Regret"])
         #plt.savefig("img/unsorted/trainloss_T-{}_Ts-{}_nseries-{}.png".format(T, Ts, n_series))
         plt.show()
 

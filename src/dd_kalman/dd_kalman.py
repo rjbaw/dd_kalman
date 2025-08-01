@@ -43,6 +43,7 @@ def log_regret(Tinit, β, λ, y, prev=None):
             partial_sum += np.expand_dims(y[:,t+p], axis=0).T @ Z.T
         G_prev = partial_sum @ np.linalg.inv(V_prev)
 
+        V_inv = np.linalg.inv(V_prev)
         for j in range(2*T):
             k = T+j
             if k >= y.shape[1]:
@@ -50,12 +51,16 @@ def log_regret(Tinit, β, λ, y, prev=None):
             Z = Zstack(y,k,p)
             ytilde[:,k] = np.squeeze(G_prev @ Z)
             losses[k] = np.sum((y[:,k] - ytilde[:,k])**2, axis=0)
+            error = y[:,k] - ytilde[:,k]
 
-            V = V_prev + Z @ Z.T
-            #G = G_prev + np.expand_dims((y[:,k] - ytilde[:,k]),axis=0) @ Z.T @ np.linalg.inv( V )
-            G = G_prev + np.expand_dims((y[:,k] - ytilde[:,k]),axis=1) @ Z.T @ np.linalg.inv( V )
+            # Update V_inv with the Woodbury matrix identity
+            V_inv_Z = V_inv @ Z
+            V_inv_new = V_inv - (V_inv_Z @ V_inv_Z.T) / (1 + Z.T @ V_inv_Z)
+
+            G = G_prev + np.expand_dims(error, axis=1) @ (Z.T @ V_inv_new)
+            
             G_prev = G
-            V_prev = V
+            V_inv = V_inv_new
             pbar.update(1)
         i += 1
     pbar.close()
