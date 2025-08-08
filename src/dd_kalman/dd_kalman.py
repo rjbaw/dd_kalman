@@ -31,38 +31,33 @@ def log_regret(Tinit, β, λ, y, prev=None):
     pbar = tqdm(total=time_length, unit='epochs')
     while True:
         T = 2**(i-1) * Tinit
-        p = round(β * np.log(T))
-        if (T+p) > y.shape[1]:
+        p = max(1, int(np.ceil(β * np.log(T))))
+        if T <= p or (T+p) > y.shape[1]:
             break
 
         V_prev = λ * np.eye(m*p)
         partial_sum = np.zeros((m,m*p))
-        for t in range(T):
-            Z = Zstack(y,t+p,p)
+        for t in range(p,T):
+            Z = Zstack(y,t,p)
             V_prev += Z @ Z.T
-            partial_sum += np.expand_dims(y[:,t+p], axis=0).T @ Z.T
-        G_prev = partial_sum @ np.linalg.inv(V_prev)
-
+            partial_sum += y[:,t:t+1] @ Z.T
         V_inv = np.linalg.inv(V_prev)
-        for j in range(2*T):
-            k = T+j
-            if k >= y.shape[1]:
-                break
+        G_prev = partial_sum @ V_inv
+
+        for k in range(T, min(2*T, y.shape[1])):
             Z = Zstack(y,k,p)
             ytilde[:,k] = np.squeeze(G_prev @ Z)
             losses[k] = np.sum((y[:,k] - ytilde[:,k])**2, axis=0)
             error = y[:,k] - ytilde[:,k]
 
-            # Update V_inv with the Woodbury matrix identity
             V_inv_Z = V_inv @ Z
-            V_inv_new = V_inv - (V_inv_Z @ V_inv_Z.T) / (1 + Z.T @ V_inv_Z)
+            V_inv = V_inv - (V_inv_Z @ V_inv_Z.T) / float(1 + Z.T @ V_inv_Z)
 
-            G = G_prev + np.expand_dims(error, axis=1) @ (Z.T @ V_inv_new)
+            G = G_prev + np.expand_dims(error, axis=1) @ (Z.T @ V_inv)
             
             G_prev = G
-            V_inv = V_inv_new
             pbar.update(1)
         i += 1
     pbar.close()
 
-    return ytilde[:,time_start:], losses
+    return ytilde[:,time_start:], losses[time_start:]
